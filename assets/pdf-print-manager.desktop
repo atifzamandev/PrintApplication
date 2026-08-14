@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PDF Print Manager
+Comment=Print PDFs with controlled timing and sequencing
+Exec=pdf-print-manager
+Icon=pdf-print-manager
+Terminal=false
+Categories=Office;Printing;
+StartupNotify=true
