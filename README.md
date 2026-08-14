@@ -86,8 +86,15 @@ pytest -v
 
 ## Packaging / desktop launcher
 
-A `.desktop` launcher and SVG icon are in `assets/`. To install them for the
-current user after `pip install .`:
+A `.desktop` launcher and SVG icon are in `assets/`. `assets/pdf-print-manager.desktop`
+ships with `Exec=pdf-print-manager`, which only works if that command is on
+`PATH` for your desktop session — true for a proper system-wide install, but
+**not** if the app only lives inside a project-local virtualenv, since a
+launcher icon is double-clicked outside any shell and never sees an activated
+venv.
+
+If you installed system-wide (no venv, or installed with `pipx`), the plain
+version works:
 
 ```bash
 mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
@@ -96,8 +103,32 @@ cp assets/icons/pdf-print-manager.svg ~/.local/share/icons/hicolor/scalable/apps
 update-desktop-database ~/.local/share/applications 2>/dev/null || true
 ```
 
-The app should then show up in your desktop's application launcher as
-"PDF Print Manager".
+If the app is only installed inside this project's `.venv`, point `Exec=` at
+the venv's own binary directly instead of the bare command name:
+
+```bash
+mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
+cp assets/icons/pdf-print-manager.svg ~/.local/share/icons/hicolor/scalable/apps/
+
+cat > ~/.local/share/applications/pdf-print-manager.desktop <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=PDF Print Manager
+Comment=Print PDFs with controlled timing and sequencing
+Exec=$(pwd)/.venv/bin/pdf-print-manager
+Icon=pdf-print-manager
+Terminal=false
+Categories=Office;Printing;
+StartupNotify=true
+DESKTOP
+
+update-desktop-database ~/.local/share/applications 2>/dev/null || true
+gtk-update-icon-cache ~/.local/share/icons/hicolor 2>/dev/null || true
+```
+
+Either way, the app should show up in your desktop's application launcher as
+"PDF Print Manager" — some desktops cache the menu and need a log out/in, or
+a moment, before a newly-added entry appears.
 
 ## User guide
 
@@ -172,6 +203,28 @@ delay between items, how long to wait for a single job before giving up
 and a shortcut to the log folder.
 
 ## Troubleshooting
+
+**`qt.qpa.plugin: Could not load the Qt platform plugin "xcb"`** — Qt 6.5+
+needs `libxcb-cursor0`, which isn't pulled in by `cups`/`poppler-utils`:
+
+```bash
+sudo apt install libxcb-cursor0
+```
+
+If it still fails after that, a minimal Debian install sometimes needs a few
+more X11 libraries:
+
+```bash
+sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+  libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xfixes0 \
+  libxkbcommon-x11-0 libgl1
+```
+
+This is a GUI app, so it also needs an actual display to render into — if
+you're SSHed into a headless machine with no desktop session running and no
+`-X` forwarding, `echo $DISPLAY` will be empty and no library install will
+fix that; you'd need a real desktop session (locally, or over VNC/RDP), or
+`ssh -X` if there's a graphical session on the machine you're connecting from.
 
 **"No printers found"** — run `lpstat -p` yourself to confirm CUPS sees a
 printer; click **Refresh Printers** after fixing it. The app never guesses —
